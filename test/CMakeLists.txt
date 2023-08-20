@@ -1,9 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(test)
-
-set(CMAKE_BUILD_TYPE Debug)
-
 add_executable(testGetAddrInfo testGetAddrInfo.cpp)
 
-add_executable(client client.cpp)
+include_directories(../)
+
+add_executable(client client.cpp )
+target_link_libraries(client icecream)
+
+add_executable(server server.cpp)
+target_link_libraries(server icecream)
+

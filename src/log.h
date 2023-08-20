@@ -15,27 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef ICECREAM_SRC_SOCKET_H
-#define ICECREAM_SRC_SOCKET_H
+#ifndef ICECREAM_SRC_LOG_H
+#define ICECREAM_SRC_LOG_H
 
-#include <string>
+#include <iostream>
 
 namespace icecream {
-class Socket {
-private:
-    int fd = -1;
-    int listenBackLogs = 10000;
-public:
-    int initServer(int port);
-    int initClient(const std::string &ip, int port);
-
-    void runServer();
-
-    int writeBuf(const std::string &s);
-
-    void closeFd();
-};
+#define log(N) std::cout
 
 } // namespace icecream
 
-#endif  // ICECREAM_SRC_SOCKET_H
+#endif  // ICECREAM_SRC_LOG_H
