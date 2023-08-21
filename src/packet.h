@@ -15,37 +15,23 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef ICECREAM_SRC_SOCKET_H
-#define ICECREAM_SRC_SOCKET_H
+#ifndef ICECREAM_SRC_PACKET_H
+#define ICECREAM_SRC_PACKET_H
 
 #include <string>
+#include <vector>
 
 namespace icecream {
-class Socket {
+
+class Packet {
 private:
-    int fd = -1;
-    int epollFd = -1;
-    int listenBackLogs = 10000;
-    char* readBuff = nullptr;
-    int readMax = 64*1024;
+    static const int magic = 0x49434500;
+    std::string buffer;
 public:
-    int initServer(int port);
-    int initClient(const std::string &ip, int port);
+    int encode(const std::string &in, std::string &out);
 
-    void runServer();
-
-    int writeBuf(const std::string &s);
-
-    int readBuf(std::string &s);
-
-    void closeFd();
-
-private:
-    void setNonBlocking(int fd);
-
-    void process(int fd);
+    int decode(std::string &in, std::vector<std::string> &out);
 };
-
 } // namespace icecream
 
-#endif  // ICECREAM_SRC_SOCKET_H
+#endif  // ICECREAM_SRC_PACKET_H
