@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-add_executable(testGetAddrInfo testGetAddrInfo.cpp)
+add_executable(test_getaddrinfo test_getaddrinfo.cpp)
 
 include_directories(../)
 

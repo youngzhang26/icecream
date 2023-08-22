@@ -33,6 +33,7 @@ int Packet::encode(const std::string &in, std::string &out) {
 int Packet::decode(std::string &in, std::vector<std::string> &out) {
     if (buffer.size() > 0) {
         in.append(buffer);
+        buffer.clear();
     }
     // decode multi msg
     int pos = 0;
@@ -44,12 +45,14 @@ int Packet::decode(std::string &in, std::vector<std::string> &out) {
         }
         int len = *(int*)(in.c_str() + 4);
         if (pos + 8 + len > in.size()) {
-            return 0;
+            break;
         }
-        out.push_back(std::string(in.c_str() + 8, len));
+        out.push_back(std::string(in, pos + 8, len));
         pos += 8 + len;
     }
-    buffer.append(in.c_str() + pos, in.size() - pos);
+    if (pos != in.size()) {
+        buffer.append(in.c_str() + pos, in.size() - pos);
+    }
     
     return 0;
 }

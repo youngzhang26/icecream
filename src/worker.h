@@ -15,44 +15,66 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#ifndef ICECREAM_SRC_SOCKET_H
-#define ICECREAM_SRC_SOCKET_H
+#ifndef ICECREAM_SRC_WORKER_H
+#define ICECREAM_SRC_WORKER_H
 
 #include <string>
-#include "worker.h"
-#include "packet.h"
+#include <vector>
+#include <thread>
+#include <functional>
+#include "lock_free_queue.h"
 
 namespace icecream {
-class Socket {
+
+struct IcReq
+{
+    std::string req;
+    int fd;
+
+    IcReq(std::string &s, int fd) {
+        req = s;
+        this->fd = fd;
+    }
+
+    IcReq() {
+        this->fd = -1;
+    }
+};
+
+class WorkerImpl {
 private:
-    int fd = -1;
-    int epollFd = -1;
-    int listenBackLogs = 10000;
-    char* readBuff = nullptr;
-    int readMax = 64*1024;
-    Worker works;
-    Packet p;
-    
+    bool stop = false;
+    std::function<void(const std::string&, int)> f = nullptr;
+    IcQueue<IcReq> qu;
 public:
-    int initServer(int port, int workNum = 10);
-    int initClient(const std::string &ip, int port);
+    WorkerImpl() {
+        qu.init(10000);
+    }
+    void addReq(IcReq &q);
 
-    void runServer();
+    void run();
 
-    int writeBuf(const std::string &s);
+    void reg(std::function<void(const std::string&, int)>& f1) {
+        f = f1;
+    }
 
-    int readBuf(std::string &s);
+    void reg(void(*f1)(const std::string&, int)) {
+        f = f1;
+    }
+};
 
-    void closeFd();
+class Worker {
+private:
+    std::vector<WorkerImpl*> works;
+    std::vector<std::thread*> ts;
+public:
+    void init(int workers);
+
+    void addReq(IcReq &q);
 
     void reg(std::function<void(const std::string&, int)>& f1);
-
-private:
-    void setNonBlocking(int fd);
-
-    void process(int fd);
 };
 
 } // namespace icecream
 
-#endif  // ICECREAM_SRC_SOCKET_H
+#endif  // ICECREAM_SRC_WORKER_H

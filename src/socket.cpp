@@ -25,7 +25,6 @@
 #include <fcntl.h>
 #include <vector>
 #include "log.h"
-#include "packet.h"
 
 namespace icecream {
 
@@ -40,8 +39,9 @@ void initTcpAddrInfo(struct addrinfo &hints) {
     hints.ai_next      = NULL;
 }
 
-int Socket::initServer(int port) {
-    readBuff = new char(readMax);
+int Socket::initServer(int port, int workNum) {
+    works.init(workNum);
+    readBuff = new char[readMax];
     if (readBuff == nullptr) {
         log(ERROR) << "malloc readBuff failed ";
         return -1;
@@ -102,7 +102,7 @@ int Socket::initServer(int port) {
 }
 
 int Socket::initClient(const std::string &ip, int port) {
-    readBuff = new char(readMax);
+    readBuff = new char[readMax];
     if (readBuff == nullptr) {
         log(ERROR) << "malloc readBuff failed ";
         return -1;
@@ -142,6 +142,11 @@ int Socket::initClient(const std::string &ip, int port) {
 void Socket::runServer() {
     #define MAX_EVENTS 40
     struct epoll_event ev, events[MAX_EVENTS];
+
+    for (int i = 0; i < 1000; ++i) {
+        std::string once;
+        once.resize(28770);
+    }
 
     while (true) {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, 500);
@@ -192,14 +197,14 @@ int Socket::readBuf(std::string &s) {
     char* temp = readBuff;
     int totalLen = 0;
     while (true) {
-        int ret = read(fd, temp, 1024);
-        if (ret < 1024) {
+        int ret = read(fd, temp, readMax);
+        if (ret < readMax) {
             totalLen += ret;
             s = std::string(readBuff, totalLen);
             break;
         } else {
-            temp += 1024;
-            totalLen += 1024;
+            temp += readMax;
+            totalLen += readMax;
         }
     }
     
@@ -214,8 +219,9 @@ void Socket::setNonBlocking(int fd) {
 }
 
 void Socket::process(int fd) {
-    icecream::Packet p;
+    
     while (true) {
+        // std::cout << "process once" << std::endl;
         int bufLen = read(fd, readBuff, readMax);
         if (bufLen <= 0) {
             return;
@@ -224,16 +230,25 @@ void Socket::process(int fd) {
         std::vector<std::string> reqs;
         p.decode(input, reqs);
         for (auto &ele : reqs) {
-            // log(INFO) << "get req: " << ele << std::endl;
-            std::string out;
-            p.encode(ele, out);
-            int ret = write(fd, out.c_str(), out.size());
-            if (ret < out.size()) {
+            // log(INFO) << "add req: " << ele << " to worker" << std::endl;
+            IcReq req(ele, fd);
+            works.addReq(req);
+            
+            /*std::string output;
+            p.encode(ele, output);
+            int ret = write(fd, output.c_str(), output.size());
+            if (ret < output.size()) {
                 log(WARN) << "write failed: " << input;
-            }
+            }*/
         }
     }
     
+    return;
+}
+
+void Socket::reg(std::function<void(const std::string&, int)> &f1)
+{
+    works.reg(f1);
     return;
 }
 
