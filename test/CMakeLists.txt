@@ -10,3 +10,5 @@ target_link_libraries(client icecream)
 add_executable(server server.cpp)
 target_link_libraries(server icecream)
 
+add_executable(client_hp client_hp.cpp)
+target_link_libraries(client_hp icecream)

@@ -7,38 +7,47 @@
 int main(int argc, char** argv) {
     int threadNum = 100;
     int oneThreadReqNum = 100000;
-    if (argc == 2) {
+    if (argc >= 2) {
         oneThreadReqNum = atoi(argv[1]);
     }
-    std::atomic<int> cnt;
+    if (argc >= 3) {
+        threadNum = atoi(argv[2]);
+    }
+    std::cout << "oneThreadReqNum " << oneThreadReqNum << " threadNum " << threadNum << std::endl;
+    std::atomic<int> cnt(0);
     auto send = [&] (int start, int end) {
         icecream::Socket c;
         icecream::Packet p;
-        c.initClient("127.0.0.1", 4567);
+        int fd = c.initClient("127.0.0.1", 4567);
         std::string str4k = "";
         for (int i = 0; i < 4*1024; ++i) {
             char c = 'a' + rand() % 26;
             str4k.append(1, c);
         }
+        str4k.append(1, '_');
         for (int i = start; i < end; ++i) {
             std::string msg = str4k + std::to_string(i);
             std::string out;
             p.encode(msg, out);
-            c.writeBuf(out);
+            c.writeBuf(fd, out);
 
-            std::string respIn;
-            c.readBuf(respIn);
-            std::vector<std::string> resps;
-            p.decode(respIn, resps);
-            for (auto &ele : resps) {
-                if (ele.size() > 4096) {
+            while (true) {
+                std::string respIn;
+                c.readBuf(fd, respIn);
+                std::vector<std::string> resps;
+                p.decode(respIn, resps);
+                bool getResp = false;
+                for (auto &ele : resps) {
                     cnt++;
-                } else {
-                    std::cout << "get resp: " << ele << std::endl;
+                    // std::cout << "in " << i << ", get resp: " << ele << std::endl;
+                    getResp = true;
+                }
+                if (getResp) {
+                    break;
                 }
             }
         }
-        c.closeFd();
+        c.closeFd(fd);
     };
 
     std::vector<std::thread*> tVec;

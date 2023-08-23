@@ -46,6 +46,7 @@ private:
     bool stop = false;
     std::function<void(const std::string&, int)> f = nullptr;
     IcQueue<IcReq> qu;
+    std::vector<IcQueue<IcReq>*> qus;
 public:
     WorkerImpl() {
         qu.init(10000);
@@ -61,18 +62,29 @@ public:
     void reg(void(*f1)(const std::string&, int)) {
         f = f1;
     }
+
+    void stopWork();
+
+    void setQus(const std::vector<IcQueue<IcReq>*> &q) {
+        qus = q;
+    }
 };
 
 class Worker {
 private:
     std::vector<WorkerImpl*> works;
     std::vector<std::thread*> ts;
+    std::function<void(const std::string&, int)> f = nullptr;
 public:
     void init(int workers);
 
     void addReq(IcReq &q);
 
     void reg(std::function<void(const std::string&, int)>& f1);
+
+    void close();
+
+    void setQus(const std::vector<IcQueue<IcReq>*> &q);
 };
 
 } // namespace icecream

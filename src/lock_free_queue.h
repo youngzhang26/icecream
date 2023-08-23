@@ -62,8 +62,8 @@ public:
         if (up >= low + capacity) {
             return -1;
         }
-        int readIdx = up % (capacity - 1);
-        buffer[readIdx] = x;
+        int writeIdx = up % capacity;
+        buffer[writeIdx] = x;
         upPos.store(up + 1, std::memory_order_release);
         return 0;
     }
@@ -81,9 +81,9 @@ public:
             if (up <= low) {
                 return -1;
             }
-            int readIdx = low % (capacity - 1);
+            int readIdx = low % capacity;
             *x = buffer[readIdx];
-        } while (lowPos.compare_exchange_strong(low, low + 1, 
+        } while (!lowPos.compare_exchange_strong(low, low + 1, 
                                                 std::memory_order_seq_cst, 
                                                 std::memory_order_relaxed));
         return 0;

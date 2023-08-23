@@ -16,37 +16,34 @@
 // under the License.
 
 #include "socket.h"
-#include <sys/epoll.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+
+#include <fcntl.h>
 #include <netdb.h>
 #include <string.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <fcntl.h>
+
+#include <set>
 #include <vector>
+
 #include "log.h"
 
 namespace icecream {
 
 void initTcpAddrInfo(struct addrinfo &hints) {
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family    = AF_UNSPEC; /* Allow IPv4 or IPv6 */
-    hints.ai_socktype  = SOCK_STREAM; /* Datagram socket */
-    hints.ai_flags     = AI_PASSIVE; /* For wildcard IP address */
-    hints.ai_protocol  = 0; /* Any protocol */
+    hints.ai_family = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
+    hints.ai_flags = AI_PASSIVE;     /* For wildcard IP address */
+    hints.ai_protocol = 0;           /* Any protocol */
     hints.ai_canonname = NULL;
-    hints.ai_addr      = NULL;
-    hints.ai_next      = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
 }
 
-int Socket::initServer(int port, int workNum) {
-    works.init(workNum);
-    readBuff = new char[readMax];
-    if (readBuff == nullptr) {
-        log(ERROR) << "malloc readBuff failed ";
-        return -1;
-    }
-
+int Socket::initServer(int port) {
     struct addrinfo *result, *rp;
     struct addrinfo hints;
     initTcpAddrInfo(hints);
@@ -63,9 +60,9 @@ int Socket::initServer(int port, int workNum) {
         if (sfd < 0) {
             continue;
         }
-        setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&optval, sizeof(int));
+        setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval, sizeof(int));
         if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0) {
-            fd = sfd;
+            listenFd = sfd;
             break;
         } else {
             log(WARN) << "bind failed, close fd : " << sfd;
@@ -74,27 +71,12 @@ int Socket::initServer(int port, int workNum) {
     }
 
     freeaddrinfo(result); /* No longer needed */
-    if (fd == -1) {
+    if (listenFd == -1) {
         return -1;
     }
 
-    if (listen(fd, listenBackLogs) < 0) {
-        close(fd);
-        return -1;
-    }
-
-    // add listen fd to epoll
-    epollFd = epoll_create1(0);
-    if (epollFd == -1) {
-        log(WARN) << "epoll_create1";
-        return -1;
-    }
-
-    struct epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = fd;
-    if (epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &ev) == -1) {
-        log(ERROR) << "epoll_ctl: listen_sock add failed";
+    if (listen(listenFd, listenBackLogs) < 0) {
+        close(listenFd);
         return -1;
     }
 
@@ -117,7 +99,7 @@ int Socket::initClient(const std::string &ip, int port) {
         log(ERROR) << "getaddrinfo: " << gai_strerror(s);
         return -1;
     }
-
+    int fd = -1;
     for (rp = result; rp != NULL; rp = rp->ai_next) {
         int cfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (cfd < 0) {
@@ -136,18 +118,58 @@ int Socket::initClient(const std::string &ip, int port) {
     if (fd == -1) {
         return -1;
     }
-    return 0;
+    return fd;
 }
 
-void Socket::runServer() {
-    #define MAX_EVENTS 40
-    struct epoll_event ev, events[MAX_EVENTS];
+void Socket::runServer(int ioNum, int workNum) {
+    works.init(workNum);
+    if (workNum > 0) {
+        ioProcess = false;
+    }
+    std::vector<std::thread *> ts;
+    qus.resize(ioNum);
+    packs.resize(ioNum);
+    conns.resize(ioNum);
+    for (int i = 0; i < ioNum; ++i) {
+        qus[i] = new IcQueue<IcReq>();
+        qus[i]->init(queueSize);
+        std::thread *t = new std::thread([=]() { ioRun(i); });
+        ts.push_back(t);
+    }
+    works.setQus(qus);
+    for (int i = 0; i < ioNum; ++i) {
+        ts[i]->join();
+        delete ts[i];
+    }
+    works.close();
+    close(listenFd);
+    return;
+}
 
-    for (int i = 0; i < 1000; ++i) {
-        std::string once;
-        once.resize(28770);
+void Socket::ioRun(int ioIdx) {
+    // add listen fd to epoll
+    int epollFd = epoll_create1(0);
+    if (epollFd == -1) {
+        log(WARN) << "epoll_create1 failed";
+        return;
     }
 
+    struct epoll_event ev;
+    ev.events = EPOLLIN;
+    ev.data.fd = listenFd;
+    if (epoll_ctl(epollFd, EPOLL_CTL_ADD, listenFd, &ev) == -1) {
+        log(ERROR) << "epoll_ctl: listen_sock add failed";
+        return;
+    }
+
+    char *ioBuff = new char[readMax];
+    if (ioBuff == nullptr) {
+        log(ERROR) << "malloc ioBuff failed ";
+        return;
+    }
+
+#define MAX_EVENTS 40
+    struct epoll_event events[MAX_EVENTS];
     while (true) {
         int nfds = epoll_wait(epollFd, events, MAX_EVENTS, 500);
         if (nfds == -1) {
@@ -156,31 +178,63 @@ void Socket::runServer() {
         }
 
         for (int n = 0; n < nfds; ++n) {
-            if (events[n].data.fd == fd) {
+            if (events[n].data.fd == listenFd) {
                 struct sockaddr addr;
                 socklen_t addrlen = 0;
-                int conn_sock = accept(fd, (struct sockaddr *) &addr, &addrlen);
+                int conn_sock = accept(listenFd, (struct sockaddr *)&addr, &addrlen);
                 if (conn_sock == -1) {
                     log(ERROR) << "accept failed";
                     continue;
                 }
+                // log(ERROR) << "accept conn " << conn_sock << "\n";
+                packs[ioIdx][conn_sock] = new Packet();
+                if (packs[ioIdx][conn_sock] == nullptr) {
+                    log(ERROR) << "new packet failed, re alloc\n";
+                    packs[ioIdx][conn_sock] = new Packet();
+                }
+                conns[ioIdx].insert(conn_sock);
                 setNonBlocking(conn_sock);
-                ev.events = EPOLLIN | EPOLLET;
+                ev.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
                 ev.data.fd = conn_sock;
                 if (epoll_ctl(epollFd, EPOLL_CTL_ADD, conn_sock, &ev) == -1) {
                     log(ERROR) << "epoll_ctl: conn_sock add failed";
                     continue;
                 }
             } else {
-                process(events[n].data.fd);
+                if (events[n].events == EPOLLRDHUP) {
+                    closeConn(ioIdx, events[n].data.fd);
+                } else {
+                    int ret = process(ioIdx, events[n].data.fd, ioBuff);
+                    if (ret < 0) {
+                        closeConn(ioIdx, events[n].data.fd);
+                    }
+                }
             }
         }
     }
+    log(INFO) << "io run finished\n";
+    for (auto ele : conns[ioIdx]) {
+        close(ele);
+    }
+    conns[ioIdx].clear();
+    close(epollFd);
 
     return;
 }
 
-void Socket::closeFd() {
+void Socket::closeConn(int idx, int fd) {
+    if (packs[idx].count(fd) == 1) {
+        delete packs[idx][fd];
+        packs[idx].erase(fd);
+    }
+    if (conns[idx].count(fd) == 1) {
+        conns[idx].erase(fd);
+    }
+    close(fd);
+}
+
+void Socket::closeFd(int fd) {
+    // log(INFO) << "close fd " << fd << "\n";
     if (fd != -1) {
         close(fd);
         fd = -1;
@@ -188,13 +242,13 @@ void Socket::closeFd() {
     return;
 }
 
-int Socket::writeBuf(const std::string &s) {
+int Socket::writeBuf(int fd, const std::string &s) {
     int ret = write(fd, s.c_str(), s.size());
     return ret;
 }
 
-int Socket::readBuf(std::string &s) {
-    char* temp = readBuff;
+int Socket::readBuf(int fd, std::string &s) {
+    char *temp = readBuff;
     int totalLen = 0;
     while (true) {
         int ret = read(fd, temp, readMax);
@@ -207,7 +261,7 @@ int Socket::readBuf(std::string &s) {
             totalLen += readMax;
         }
     }
-    
+
     return 0;
 }
 
@@ -218,36 +272,40 @@ void Socket::setNonBlocking(int fd) {
     return;
 }
 
-void Socket::process(int fd) {
-    
+int Socket::process(int ioIdx, int fd, char *ioBuf) {
     while (true) {
         // std::cout << "process once" << std::endl;
-        int bufLen = read(fd, readBuff, readMax);
-        if (bufLen <= 0) {
-            return;
+        int bufLen = read(fd, ioBuf, readMax);
+        if (bufLen == 0) {
+            return -1;
+        } else if (bufLen < 0) {
+            if (errno == EAGAIN) {
+                return 0;
+            } else {
+                log(INFO) << "read failed " << strerror(errno) << "\n";
+                return -1;
+            }
         }
-        std::string input(readBuff, bufLen);
+        std::string input(ioBuf, bufLen);
         std::vector<std::string> reqs;
-        p.decode(input, reqs);
+        packs[ioIdx][fd]->decode(input, reqs);
         for (auto &ele : reqs) {
             // log(INFO) << "add req: " << ele << " to worker" << std::endl;
-            IcReq req(ele, fd);
-            works.addReq(req);
-            
-            /*std::string output;
-            p.encode(ele, output);
-            int ret = write(fd, output.c_str(), output.size());
-            if (ret < output.size()) {
-                log(WARN) << "write failed: " << input;
-            }*/
+            if (ioProcess) {
+                f(ele, fd);
+            } else {
+                IcReq req(ele, fd);
+                qus[ioIdx]->push(req);
+            }
         }
     }
-    
-    return;
+
+    return 0;
 }
 
-void Socket::reg(std::function<void(const std::string&, int)> &f1)
-{
+void Socket::reg(std::function<void(const std::string &, int)> &f1) {
+    // log(INFO) << "Socket set func in " << "\n";
+    f = f1;
     works.reg(f1);
     return;
 }

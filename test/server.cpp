@@ -2,7 +2,8 @@
 #include <unistd.h>
 #include "src/socket.h"
 #include "src/packet.h"
-
+#include <errno.h>
+#include <string.h>
 
 int main() {
     icecream::Socket s;
@@ -14,11 +15,11 @@ int main() {
         p.encode(s, out);
         int ret = write(fd, out.c_str(), out.size());
         if (ret < out.size()) {
-            std::cout << "write failed: " << s;
+            std::cout << "write failed: " << strerror(errno) << std::endl;
         };
     };
     s.reg(f);
-    s.runServer();
+    s.runServer(2, 10);
     
     return 0;
 }
