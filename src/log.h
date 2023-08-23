@@ -25,4 +25,4 @@ namespace icecream {
 
 } // namespace icecream
 
-#endif  // ICECREAM_SRC_LOG_H
+#endif // ICECREAM_SRC_LOG_H

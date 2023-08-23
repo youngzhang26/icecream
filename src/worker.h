@@ -18,16 +18,15 @@
 #ifndef ICECREAM_SRC_WORKER_H
 #define ICECREAM_SRC_WORKER_H
 
-#include <string>
-#include <vector>
-#include <thread>
-#include <functional>
 #include "lock_free_queue.h"
+#include <functional>
+#include <string>
+#include <thread>
+#include <vector>
 
 namespace icecream {
 
-struct IcReq
-{
+struct IcReq {
     std::string req;
     int fd;
 
@@ -36,57 +35,49 @@ struct IcReq
         this->fd = fd;
     }
 
-    IcReq() {
-        this->fd = -1;
-    }
+    IcReq() { this->fd = -1; }
 };
 
 class WorkerImpl {
-private:
+  private:
     bool stop = false;
-    std::function<void(const std::string&, int)> f = nullptr;
+    std::function<void(const std::string &, int)> f = nullptr;
     IcQueue<IcReq> qu;
-    std::vector<IcQueue<IcReq>*> qus;
-public:
-    WorkerImpl() {
-        qu.init(10000);
-    }
+    std::vector<IcQueue<IcReq> *> qus;
+
+  public:
+    WorkerImpl() { qu.init(10000); }
     void addReq(IcReq &q);
 
     void run();
 
-    void reg(std::function<void(const std::string&, int)>& f1) {
-        f = f1;
-    }
+    void reg(std::function<void(const std::string &, int)> &f1) { f = f1; }
 
-    void reg(void(*f1)(const std::string&, int)) {
-        f = f1;
-    }
+    void reg(void (*f1)(const std::string &, int)) { f = f1; }
 
     void stopWork();
 
-    void setQus(const std::vector<IcQueue<IcReq>*> &q) {
-        qus = q;
-    }
+    void setQus(const std::vector<IcQueue<IcReq> *> &q) { qus = q; }
 };
 
 class Worker {
-private:
-    std::vector<WorkerImpl*> works;
-    std::vector<std::thread*> ts;
-    std::function<void(const std::string&, int)> f = nullptr;
-public:
+  private:
+    std::vector<WorkerImpl *> works;
+    std::vector<std::thread *> ts;
+    std::function<void(const std::string &, int)> f = nullptr;
+
+  public:
     void init(int workers);
 
     void addReq(IcReq &q);
 
-    void reg(std::function<void(const std::string&, int)>& f1);
+    void reg(std::function<void(const std::string &, int)> &f1);
 
     void close();
 
-    void setQus(const std::vector<IcQueue<IcReq>*> &q);
+    void setQus(const std::vector<IcQueue<IcReq> *> &q);
 };
 
 } // namespace icecream
 
-#endif  // ICECREAM_SRC_WORKER_H
+#endif // ICECREAM_SRC_WORKER_H

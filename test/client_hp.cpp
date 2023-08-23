@@ -1,20 +1,20 @@
-#include <unistd.h>
-#include <iostream>
-#include <vector>
-#include <map>
-#include "src/socket.h"
 #include "src/packet.h"
+#include "src/socket.h"
+#include <iostream>
+#include <map>
 #include <sys/epoll.h>
-#include <sys/types.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <vector>
 
 uint64_t getTimeUs() {
     timeval t1;
     gettimeofday(&t1, nullptr);
-    return t1.tv_sec*1000000 + t1.tv_usec;
+    return t1.tv_sec * 1000000 + t1.tv_usec;
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     int connNum = 40;
     int oneThreadReqNum = 1000000;
     int threadNum = 1;
@@ -27,10 +27,10 @@ int main(int argc, char** argv) {
     if (argc >= 4) {
         threadNum = atoi(argv[3]);
     }
-    std::cout << "oneThreadReqNum " << oneThreadReqNum << " connNum " << connNum
-              << " threadNum " << threadNum << std::endl;
+    std::cout << "oneThreadReqNum " << oneThreadReqNum << " connNum " << connNum << " threadNum " << threadNum
+              << std::endl;
 
-    auto f = [&] (int start, int end) {
+    auto f = [&](int start, int end) {
         icecream::Socket c;
         int epollFd = epoll_create1(0);
         if (epollFd == -1) {
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
         }
 
         std::map<int, bool> conns;
-        std::map<int, icecream::Packet*> packs;
+        std::map<int, icecream::Packet *> packs;
         for (int i = 0; i < connNum; ++i) {
             int fd = c.initClient("127.0.0.1", 4567);
             if (fd < 0) {
@@ -57,16 +57,16 @@ int main(int argc, char** argv) {
         }
 
         std::string str4k = "";
-        for (int i = 0; i < 10*1024; ++i) {
+        for (int i = 0; i < 10 * 1024; ++i) {
             char c = 'a' + rand() % 26;
             str4k.append(1, c);
         }
         str4k.append(1, '_');
 
-        int readMax = 64*1024;
-        char* ioBuf = new char[readMax];
+        int readMax = 64 * 1024;
+        char *ioBuf = new char[readMax];
 
-        #define MAX_EVENTS 40
+#define MAX_EVENTS 40
         struct epoll_event events[MAX_EVENTS];
         std::vector<std::string> reqs;
 
@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
                     }
                 }
             }
-            
+
             int nfds = epoll_wait(epollFd, events, MAX_EVENTS, 500);
             if (nfds == -1) {
                 log(ERROR) << "epoll_wait failed";
@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
                 packs[currFd]->decode(input, reqs);
                 for (auto &ele : reqs) {
                     conns[currFd] = false;
-                    //std::cout << "get conn " << currFd << " resp : " << ele << std::endl;
+                    // std::cout << "get conn " << currFd << " resp : " << ele << std::endl;
                 }
             }
             /*static int statCnt = 0;
@@ -110,7 +110,6 @@ int main(int argc, char** argv) {
             if (statCnt % 10000 == 0) {
                 std::cout << "time us " << getTimeUs() - t1Us << " has resp " << respCnt << "\n";
             }*/
-           
         }
 
         while (true) {
@@ -131,24 +130,24 @@ int main(int argc, char** argv) {
                 packs[currFd]->decode(input, reqs);
                 for (auto &ele : reqs) {
                     conns[currFd] = false;
-                    //std::cout << "get conn " << currFd << " resp : " << ele << std::endl;
+                    // std::cout << "get conn " << currFd << " resp : " << ele << std::endl;
                 }
             }
             if (allRecv) {
                 break;
             }
         }
-        for (auto& ele : conns) {
+        for (auto &ele : conns) {
             close(ele.first);
             delete packs[ele.first];
         }
         return;
     };
 
-    std::vector<std::thread*> tVec;
+    std::vector<std::thread *> tVec;
     time_t t1 = time(nullptr);
     for (int i = 0; i < threadNum; ++i) {
-        std::thread* t = new std::thread(f, oneThreadReqNum*i, oneThreadReqNum*(i+1));
+        std::thread *t = new std::thread(f, oneThreadReqNum * i, oneThreadReqNum * (i + 1));
         tVec.push_back(t);
         // std::cout << "time: " << time(nullptr) << ", start thread " << i << std::endl;
     }
@@ -156,12 +155,12 @@ int main(int argc, char** argv) {
     for (int i = 0; i < threadNum; ++i) {
         tVec[i]->join();
     }
-    
+
     time_t t2 = time(nullptr);
-    std::cout << "from time " << t1 << " to time: " << t2 <<  ", all thread finish, exit" << std::endl;
+    std::cout << "from time " << t1 << " to time: " << t2 << ", all thread finish, exit" << std::endl;
     time_t diff = t2 == t1 ? 1 : t2 - t1;
-    float avgSpeed = threadNum*oneThreadReqNum / float(diff);
+    float avgSpeed = threadNum * oneThreadReqNum / float(diff);
     std::cout << "avg speed " << avgSpeed << std::endl;
-    
+
     return 0;
 }

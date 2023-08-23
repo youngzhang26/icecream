@@ -16,16 +16,16 @@
 // under the License.
 
 #include "packet.h"
-#include <string.h>
 #include "log.h"
+#include <string.h>
 
 namespace icecream {
 
 int Packet::encode(const std::string &in, std::string &out) {
     int tempMagic = magic;
-    out.append((char*)(&tempMagic), 4);
+    out.append((char *)(&tempMagic), 4);
     int len = in.size();
-    out.append((char*)(&len), 4);
+    out.append((char *)(&len), 4);
     out.append(in);
     return 0;
 }
@@ -38,12 +38,12 @@ int Packet::decode(std::string &in, std::vector<std::string> &out) {
     // decode multi msg
     int pos = 0;
     while (pos + 8 < in.size()) {
-        int mag = *(int*)(in.c_str());
+        int mag = *(int *)(in.c_str());
         if (mag != magic) {
             log(WARN) << "magic error " << mag << ", should be " << magic;
             return -1;
         }
-        int len = *(int*)(in.c_str() + 4);
+        int len = *(int *)(in.c_str() + 4);
         if (pos + 8 + len > in.size()) {
             break;
         }
@@ -53,7 +53,7 @@ int Packet::decode(std::string &in, std::vector<std::string> &out) {
     if (pos != in.size()) {
         buffer.append(in.c_str() + pos, in.size() - pos);
     }
-    
+
     return 0;
 }
 

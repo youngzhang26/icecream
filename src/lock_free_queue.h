@@ -15,26 +15,20 @@
 // specific language governing permissions and limitations
 // under the License.
 
-
 #ifndef ICECREAM_SRC_LOCK_FREE_QUEUE_H
 #define ICECREAM_SRC_LOCK_FREE_QUEUE_H
 
-#include <atomic>
 #include "log.h"
+#include <atomic>
 
 namespace icecream {
 
-template <typename T>
-class IcQueue {
-public:
-    IcQueue() : upPos(1), 
-                lowPos(1), 
-                capacity(0), 
-                buffer(nullptr) {
-    }
-    
+template <typename T> class IcQueue {
+  public:
+    IcQueue() : upPos(1), lowPos(1), capacity(0), buffer(nullptr) {}
+
     ~IcQueue() {
-        delete [] buffer;
+        delete[] buffer;
         buffer = nullptr;
     }
 
@@ -47,7 +41,7 @@ public:
             log(ERROR) << "queue cap should not be zero.\n";
             return -1;
         }
-        buffer = new(std::nothrow) T[cap];
+        buffer = new (std::nothrow) T[cap];
         if (buffer == nullptr) {
             log(ERROR) << "alloc buffer failed.\n";
             return -1;
@@ -56,7 +50,7 @@ public:
         return 0;
     }
 
-    int push(T& x) {
+    int push(T &x) {
         const size_t up = upPos.load(std::memory_order_relaxed);
         const size_t low = lowPos.load(std::memory_order_acquire);
         if (up >= low + capacity) {
@@ -68,7 +62,7 @@ public:
         return 0;
     }
 
-    int pop(T* x) {
+    int pop(T *x) {
         size_t up = upPos.load(std::memory_order_acquire);
         size_t low = lowPos.load(std::memory_order_acquire);
         if (up <= low) {
@@ -83,11 +77,9 @@ public:
             }
             int readIdx = low % capacity;
             *x = buffer[readIdx];
-        } while (!lowPos.compare_exchange_strong(low, low + 1, 
-                                                std::memory_order_seq_cst, 
-                                                std::memory_order_relaxed));
+        } while (!lowPos.compare_exchange_strong(low, low + 1, std::memory_order_seq_cst, std::memory_order_relaxed));
         return 0;
-    } 
+    }
 
     size_t cap() const { return capacity; }
 
@@ -96,16 +88,17 @@ public:
         const size_t low = lowPos.load(std::memory_order_relaxed);
         return up <= low ? 0 : (up - low);
     }
-private:
-    //IcQueue(const IcQueue &q) = delete;
-    //IcQueue& operator=(const IcQueue&) = delete;
+
+  private:
+    // IcQueue(const IcQueue &q) = delete;
+    // IcQueue& operator=(const IcQueue&) = delete;
 
     std::atomic<size_t> upPos;
     std::atomic<size_t> lowPos;
     size_t capacity;
-    T* buffer;
+    T *buffer;
 };
 
 } // namespace icecream
 
-#endif  // ICECREAM_SRC_LOCK_FREE_QUEUE_H
+#endif // ICECREAM_SRC_LOCK_FREE_QUEUE_H

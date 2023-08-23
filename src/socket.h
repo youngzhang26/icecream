@@ -18,28 +18,28 @@
 #ifndef ICECREAM_SRC_SOCKET_H
 #define ICECREAM_SRC_SOCKET_H
 
-#include <string>
+#include "packet.h"
+#include "worker.h"
 #include <map>
 #include <set>
-#include "worker.h"
-#include "packet.h"
+#include <string>
 
 namespace icecream {
 class Socket {
-private:
+  private:
     int listenFd = -1;
     int listenBackLogs = 10000;
-    char* readBuff = nullptr;
-    int readMax = 64*1024;
+    char *readBuff = nullptr;
+    int readMax = 64 * 1024;
     Worker works;
-    std::vector<std::map<int, Packet*>> packs;
+    std::vector<std::map<int, Packet *>> packs;
     std::vector<std::set<int>> conns;
-    std::vector<IcQueue<IcReq>*> qus;
-    std::function<void(const std::string&, int)> f = nullptr;
+    std::vector<IcQueue<IcReq> *> qus;
+    std::function<void(const std::string &, int)> f = nullptr;
     bool ioProcess = true;
     int queueSize = 1000;
-    
-public:
+
+  public:
     int initServer(int port);
     int initClient(const std::string &ip, int port);
 
@@ -51,12 +51,12 @@ public:
 
     void closeFd(int fd);
 
-    void reg(std::function<void(const std::string&, int)>& f1);
+    void reg(std::function<void(const std::string &, int)> &f1);
 
-private:
+  private:
     void setNonBlocking(int fd);
 
-    int process(int ioIdx, int fd, char* ioBuf);
+    int process(int ioIdx, int fd, char *ioBuf);
 
     void ioRun(int ioIdx);
 
@@ -65,4 +65,4 @@ private:
 
 } // namespace icecream
 
-#endif  // ICECREAM_SRC_SOCKET_H
+#endif // ICECREAM_SRC_SOCKET_H

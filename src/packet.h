@@ -24,18 +24,17 @@
 namespace icecream {
 
 class Packet {
-private:
+  private:
     static const int magic = 0x49434500;
     std::string buffer;
     std::string temp;
-public:
-    Packet() {
-        temp.reserve(64*1024);
-    }
+
+  public:
+    Packet() { temp.reserve(64 * 1024); }
     int encode(const std::string &in, std::string &out);
 
     int decode(std::string &in, std::vector<std::string> &out);
 };
 } // namespace icecream
 
-#endif  // ICECREAM_SRC_PACKET_H
+#endif // ICECREAM_SRC_PACKET_H
