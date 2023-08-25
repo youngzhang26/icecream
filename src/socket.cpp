@@ -122,6 +122,7 @@ int Socket::initClient(const std::string &ip, int port) {
 }
 
 void Socket::runServer(int ioNum, int workNum) {
+    log(INFO) << "begin runServer";
     works.init(workNum);
     if (workNum > 0) {
         ioProcess = false;

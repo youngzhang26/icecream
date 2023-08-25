@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <vector>
+#include "src/log.h"
 
 uint64_t getTimeUs() {
     timeval t1;
@@ -15,6 +16,7 @@ uint64_t getTimeUs() {
 }
 
 int main(int argc, char **argv) {
+    icecream::initLog("../log/client.log", icecream::Logger::kLevelInfo);
     int connNum = 40;
     int oneThreadReqNum = 1000000;
     int threadNum = 1;
@@ -27,8 +29,7 @@ int main(int argc, char **argv) {
     if (argc >= 4) {
         threadNum = atoi(argv[3]);
     }
-    std::cout << "oneThreadReqNum " << oneThreadReqNum << " connNum " << connNum << " threadNum " << threadNum
-              << std::endl;
+    log(INFO) << "oneThreadReqNum " << oneThreadReqNum << " connNum " << connNum << " threadNum " << threadNum;
 
     auto f = [&](int start, int end) {
         icecream::Socket c;
@@ -57,7 +58,7 @@ int main(int argc, char **argv) {
         }
 
         std::string str4k = "";
-        for (int i = 0; i < 10 * 1024; ++i) {
+        for (int i = 0; i < 4 * 1024; ++i) {
             char c = 'a' + rand() % 26;
             str4k.append(1, c);
         }

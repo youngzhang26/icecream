@@ -40,7 +40,7 @@ int Packet::decode(std::string &in, std::vector<std::string> &out) {
     while (pos + 8 < in.size()) {
         int mag = *(int *)(in.c_str());
         if (mag != magic) {
-            log(WARN) << "magic error " << mag << ", should be " << magic;
+            LOG(WARN) << "magic error " << mag << ", should be " << magic;
             return -1;
         }
         int len = *(int *)(in.c_str() + 4);
