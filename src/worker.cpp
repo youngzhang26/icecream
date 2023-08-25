@@ -41,7 +41,6 @@ void Worker::setQus(const std::vector<IcQueue<IcReq> *> &q) {
 void WorkerImpl::addReq(IcReq &q) { qu.push(q); }
 
 void WorkerImpl::run() {
-    // log(INFO) << "begin run \n";
     while (true) {
         bool allEmpty = true;
         for (auto &ele : qus) {
@@ -51,11 +50,10 @@ void WorkerImpl::run() {
             IcReq q;
             while (ele->pop(&q) >= 0) {
                 allEmpty = false;
-                // log(INFO) << "get req " << q.req << "\n";
                 if (f) {
                     f(q.req, q.fd);
                 } else {
-                    log(INFO) << "no func reg, do nothing\n";
+                    log(WARN) << "no func reg, do nothing.";
                 }
             }
         }

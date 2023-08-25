@@ -8,7 +8,7 @@
 #include "src/log.h"
 
 int main() {
-    icecream::initLog("../log/server.log", icecream::Logger::kLevelInfo);
+    icecream::initLog("../log/server.log", icecream::Logger::kLevelDebug);
     icecream::Socket s;
     icecream::Packet p;
     s.initServer(4567);

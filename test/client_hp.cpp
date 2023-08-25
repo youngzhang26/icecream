@@ -16,7 +16,7 @@ uint64_t getTimeUs() {
 }
 
 int main(int argc, char **argv) {
-    icecream::initLog("../log/client.log", icecream::Logger::kLevelInfo);
+    icecream::initLog("../log/client.log", icecream::Logger::kLevelDebug);
     int connNum = 40;
     int oneThreadReqNum = 1000000;
     int threadNum = 1;
@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
         for (int i = 0; i < connNum; ++i) {
             int fd = c.initClient("127.0.0.1", 4567);
             if (fd < 0) {
-                log(ERROR) << "init conn failed in " << i << "\n";
+                log(ERROR) << "init conn failed in " << i;
             }
             struct epoll_event ev;
             ev.events = EPOLLOUT;
@@ -92,6 +92,7 @@ int main(int argc, char **argv) {
                 log(ERROR) << "epoll_wait failed";
                 continue;
             }
+            int respCnt = 0;
             for (int n = 0; n < nfds; ++n) {
                 int currFd = events[n].data.fd;
                 int bufLen = read(currFd, ioBuf, readMax);
@@ -103,14 +104,14 @@ int main(int argc, char **argv) {
                 packs[currFd]->decode(input, reqs);
                 for (auto &ele : reqs) {
                     conns[currFd] = false;
-                    // std::cout << "get conn " << currFd << " resp : " << ele << std::endl;
+                    respCnt++;
                 }
             }
-            /*static int statCnt = 0;
+            static int statCnt = 0;
             statCnt++;
             if (statCnt % 10000 == 0) {
-                std::cout << "time us " << getTimeUs() - t1Us << " has resp " << respCnt << "\n";
-            }*/
+                log(INFO) << "time us " << getTimeUs() - t1Us << " has resp " << respCnt;
+            }
         }
 
         while (true) {

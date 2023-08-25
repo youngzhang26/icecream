@@ -187,10 +187,10 @@ void Socket::ioRun(int ioIdx) {
                     log(ERROR) << "accept failed";
                     continue;
                 }
-                // log(ERROR) << "accept conn " << conn_sock << "\n";
+                log(DEBUG) << "accept conn " << conn_sock;
                 packs[ioIdx][conn_sock] = new Packet();
                 if (packs[ioIdx][conn_sock] == nullptr) {
-                    log(ERROR) << "new packet failed, re alloc\n";
+                    log(ERROR) << "new packet failed, re alloc";
                     packs[ioIdx][conn_sock] = new Packet();
                 }
                 conns[ioIdx].insert(conn_sock);
@@ -213,7 +213,7 @@ void Socket::ioRun(int ioIdx) {
             }
         }
     }
-    log(INFO) << "io run finished\n";
+    log(INFO) << "io run finished.";
     for (auto ele : conns[ioIdx]) {
         close(ele);
     }
@@ -224,6 +224,7 @@ void Socket::ioRun(int ioIdx) {
 }
 
 void Socket::closeConn(int idx, int fd) {
+    log(DEBUG) << "closeConn: close fd " << fd;
     if (packs[idx].count(fd) == 1) {
         delete packs[idx][fd];
         packs[idx].erase(fd);
@@ -235,7 +236,7 @@ void Socket::closeConn(int idx, int fd) {
 }
 
 void Socket::closeFd(int fd) {
-    // log(INFO) << "close fd " << fd << "\n";
+    log(DEBUG) << "closeFd: close fd " << fd;
     if (fd != -1) {
         close(fd);
         fd = -1;
@@ -283,7 +284,7 @@ int Socket::process(int ioIdx, int fd, char *ioBuf) {
             if (errno == EAGAIN) {
                 return 0;
             } else {
-                log(INFO) << "read failed " << strerror(errno) << "\n";
+                log(INFO) << "read failed " << strerror(errno);
                 return -1;
             }
         }
@@ -305,7 +306,7 @@ int Socket::process(int ioIdx, int fd, char *ioBuf) {
 }
 
 void Socket::reg(std::function<void(const std::string &, int)> &f1) {
-    // log(INFO) << "Socket set func in " << "\n";
+    log(DEBUG) << "Socket set server Handle.";
     f = f1;
     works.reg(f1);
     return;

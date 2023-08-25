@@ -34,16 +34,16 @@ template <typename T> class IcQueue {
 
     int init(int cap) {
         if (capacity != 0) {
-            log(ERROR) << "queue inited.\n";
+            log(ERROR) << "queue inited.";
             return -1;
         }
         if (cap == 0) {
-            log(ERROR) << "queue cap should not be zero.\n";
+            log(ERROR) << "queue cap should not be zero.";
             return -1;
         }
         buffer = new (std::nothrow) T[cap];
         if (buffer == nullptr) {
-            log(ERROR) << "alloc buffer failed.\n";
+            log(ERROR) << "alloc buffer failed.";
             return -1;
         }
         capacity = cap;
